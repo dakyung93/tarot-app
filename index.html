@@ -289,21 +289,23 @@ async function fetchReading(){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({question:q,cards:drawnCards,positions:pos})
     });
-    const data=await res.json();
+    let data;
+    try{ data=await res.json(); } catch(e){ throw new Error('서버 응답 오류'); }
 
     if(res.status===402 && data.error==='FREE_LIMIT_REACHED'){
-      // 서버가 한도 초과 알림 → 페이월 표시
       document.getElementById('readingSection').style.display='none';
       showPaywall();
       document.getElementById('drawBtn').disabled=false;
       return;
     }
+    if(res.status===429) throw new Error(data.error||'요청이 너무 많습니다');
     if(!res.ok) throw new Error(data.error||'서버 오류');
-    if(res.status===429) throw new Error(data.error);
 
-    document.getElementById('readingBody').innerHTML=data.reading.split('\n\n').filter(p=>p.trim()).map(p=>`<p>${p.trim()}</p>`).join('');
+    const reading = data.reading || data.text || '';
+    if(!reading) throw new Error('AI 응답이 비어있습니다');
 
-    // 서버에서 반환된 남은 횟수로 UI 업데이트
+    document.getElementById('readingBody').innerHTML=reading.split('\n\n').filter(p=>p.trim()).map(p=>`<p>${p.trim()}</p>`).join('');
+
     if(data.remaining !== undefined){
       serverStatus.remaining = data.remaining;
       serverStatus.is_paid = data.is_paid;
